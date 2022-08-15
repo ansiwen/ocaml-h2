@@ -311,7 +311,6 @@ module Writer = struct
           (* The number of bytes that were not written due to the output stream
            * being closed before all buffered output could be written. Useful
            * for detecting error cases. *)
-    ; headers_block_buffer : Bigstringaf.t
     ; mutable wakeup : Optional_thunk.t
     }
 
@@ -321,7 +320,6 @@ module Writer = struct
     { buffer
     ; encoder
     ; drained_bytes = 0
-    ; headers_block_buffer = Bigstringaf.create 0x1000
     ; wakeup = Optional_thunk.none
     }
 
@@ -469,7 +467,7 @@ module Writer = struct
 
   let write_request_like_frame t hpack_encoder ~write_frame frame_info request =
     let { Request.meth; target; scheme; headers } = request in
-    let faraday = Faraday.of_bigstring t.headers_block_buffer in
+    let faraday = Faraday.create 0x1000 in
     Hpack.Encoder.encode_header
       hpack_encoder
       faraday
@@ -504,7 +502,7 @@ module Writer = struct
   let write_response_headers t hpack_encoder frame_info response =
     if not (is_closed t.encoder) then (
       let { Response.status; headers; _ } = response in
-      let faraday = Faraday.of_bigstring t.headers_block_buffer in
+      let faraday = Faraday.create 0x1000 in
       (* From RFC7540§8.1.2.4:
        *   For HTTP/2 responses, a single :status pseudo-header field is defined
        *   that carries the HTTP status code field (see [RFC7231], Section 6).
@@ -527,7 +525,7 @@ module Writer = struct
 
   let write_response_trailers t hpack_encoder frame_info trailers =
     if not (is_closed t.encoder) then (
-      let faraday = Faraday.of_bigstring t.headers_block_buffer in
+      let faraday = Faraday.create 0x1000 in
       (* From RFC7540§8.1:
        *  optionally, one HEADERS frame, followed by zero or more
        *  CONTINUATION frames containing the trailer-part, if present (see
